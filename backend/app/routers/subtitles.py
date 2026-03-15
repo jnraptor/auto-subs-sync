@@ -86,7 +86,6 @@ async def save_synced_subtitle(
     overwrite: bool = Query(False, description="Overwrite original subtitle"),
 ):
     from ..services.job_manager import job_manager
-    from ..services.file_browser import get_relative_path
     import shutil
 
     job = await job_manager.get_job(job_id)
