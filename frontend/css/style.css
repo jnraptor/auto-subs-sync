@@ -257,7 +257,8 @@ body {
 
 .sync-controls {
     padding: 1.5rem;
-    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 300px);
 }
 
 .no-selection, .no-video {
@@ -509,9 +510,13 @@ body {
 
 .preview-container {
     position: relative;
-    background: #000;
+    background: var(--bg-primary);
     min-height: 300px;
     max-height: 400px;
+}
+
+.preview-container:has(.video-player-wrapper:not(.hidden)) {
+    background: #000;
 }
 
 .video-player-wrapper {
