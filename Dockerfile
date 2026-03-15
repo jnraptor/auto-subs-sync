@@ -1,10 +1,10 @@
 # Stage 1: Build alass from source
-FROM rust:1.75-slim AS alass-builder
+FROM rust:slim AS alass-builder
 RUN apt-get update && apt-get install -y git
 RUN cargo install alass-cli
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:slim
 
 WORKDIR /app
 
