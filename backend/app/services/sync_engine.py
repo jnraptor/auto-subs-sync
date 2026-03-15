@@ -15,6 +15,7 @@ from ..models.errors import (
     SyncFailedError,
     SyncError,
 )
+from ..utils.srt import parse_srt, to_srt, filter_ads
 
 
 @dataclass
@@ -253,6 +254,25 @@ def sync(
         if working_sub.suffix.lower() != sub.suffix.lower():
             temp_files.append(working_sub)
             logs.append("Converted ASS/SSA to SRT format")
+
+        if options.skip_ads:
+            try:
+                content = working_sub.read_text(encoding="utf-8")
+                entries = parse_srt(content)
+                original_count = len(entries)
+                filtered_entries = filter_ads(entries)
+                filtered_count = len(filtered_entries)
+                if filtered_count < original_count:
+                    filtered_content = to_srt(filtered_entries)
+                    filtered_sub = working_sub.with_suffix(".filtered.srt")
+                    filtered_sub.write_text(filtered_content, encoding="utf-8")
+                    temp_files.append(filtered_sub)
+                    working_sub = filtered_sub
+                    logs.append(
+                        f"Filtered {original_count - filtered_count} advertisement entries ({filtered_count}/{original_count} kept)"
+                    )
+            except Exception as e:
+                logs.append(f"Ad filtering warning: {str(e)}")
 
         if engine == SyncEngine.FFSUBSYNC:
             output_path = working_sub.with_suffix(".synced.srt")

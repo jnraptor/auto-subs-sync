@@ -90,6 +90,9 @@ def build_ffsubsync_command(
         if options.offset_ms is not None:
             cmd.extend(["--offset", str(options.offset_ms)])
 
+        if options.max_offset_seconds is not None:
+            cmd.extend(["--max-offset-seconds", str(options.max_offset_seconds)])
+
     return cmd
 
 
@@ -354,7 +357,7 @@ def run_ffsubsync_sync(
             text=True,
             timeout=timeout,
         )
-        
+
         if result.stdout:
             logs.append(result.stdout)
         if result.stderr:

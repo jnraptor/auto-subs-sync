@@ -25,6 +25,8 @@ export function createSyncControls(store, wsManager, toast) {
     const manualOptionsEl = document.getElementById('manual-options');
     const manualOffsetEl = document.getElementById('manual-offset');
     const framerateAdjustEl = document.getElementById('framerate-adjust');
+    const skipAdsEl = document.getElementById('skip-ads');
+    const maxOffsetSecondsEl = document.getElementById('max-offset-seconds');
     const syncBtnEl = document.getElementById('sync-btn');
 
     const progressFillEl = document.getElementById('progress-fill');
@@ -195,6 +197,8 @@ export function createSyncControls(store, wsManager, toast) {
         const audioTrack = audioTrackEl ? (audioTrackEl.value || null) : null;
         const manualOffset = manualOffsetEl ? (parseInt(manualOffsetEl.value) || 0) : 0;
         const framerateAdjust = framerateAdjustEl ? framerateAdjustEl.value : 'none';
+        const skipAds = skipAdsEl ? skipAdsEl.checked : false;
+        const maxOffsetSeconds = maxOffsetSecondsEl ? (parseInt(maxOffsetSecondsEl.value) || 60) : 60;
 
         let sourceFps = null, targetFps = null;
         if (engine === 'manual' && framerateAdjust && framerateAdjust !== 'none') {
@@ -214,6 +218,8 @@ export function createSyncControls(store, wsManager, toast) {
                 offset_ms: engine === 'manual' ? manualOffset : null,
                 source_fps: sourceFps,
                 target_fps: targetFps,
+                skip_ads: skipAds,
+                max_offset_seconds: maxOffsetSeconds,
             },
         };
 

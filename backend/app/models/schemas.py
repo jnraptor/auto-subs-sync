@@ -16,6 +16,8 @@ class SyncOptions(BaseModel):
     offset_ms: Optional[int] = None
     source_fps: Optional[float] = None
     target_fps: Optional[float] = None
+    skip_ads: Optional[bool] = False
+    max_offset_seconds: Optional[int] = 60
 
 
 class SyncRequest(BaseModel):

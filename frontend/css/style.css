@@ -951,3 +951,21 @@ body {
     height: 1rem;
     cursor: pointer;
 }
+
+/* Advanced options section */
+.advanced-options {
+    padding: var(--space-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.advanced-options .form-group {
+    margin-bottom: 0;
+}
+
+.advanced-options .form-hint {
+    display: block;
+    margin-top: var(--space-xs);
+    font-size: 0.75rem;
+}
