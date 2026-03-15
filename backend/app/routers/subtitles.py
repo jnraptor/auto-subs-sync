@@ -107,6 +107,8 @@ async def save_synced_subtitle(
             shutil.copy2(original_path, backup_path)
         shutil.copy2(synced_path, original_path)
         saved_path = str(original_path.relative_to(Path(settings.MEDIA_PATH)))
+        if synced_path.exists():
+            synced_path.unlink()
     else:
         saved_path = str(synced_path.relative_to(Path(settings.MEDIA_PATH)))
 
