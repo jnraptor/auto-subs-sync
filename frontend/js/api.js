@@ -24,6 +24,23 @@ let currentJobId = null;
 
 export function initApi(state) {
     // WebSocket connection is established per-job, not globally
+    
+    // Check API health on init and periodically
+    async function checkHealth() {
+        try {
+            const response = await fetch(`${API_PREFIX}/health`);
+            const connected = response.ok;
+            notifyConnectionChange(connected);
+            return connected;
+        } catch (error) {
+            notifyConnectionChange(false);
+            return false;
+        }
+    }
+    
+    // Check health initially and every 30 seconds
+    checkHealth();
+    setInterval(checkHealth, 30000);
 
     async function fetchWithAuth(url, options = {}) {
         const response = await fetch(url, {
@@ -60,12 +77,12 @@ export function initApi(state) {
 
         websocket.onopen = () => {
             reconnectAttempts = 0;
-            notifyConnectionChange(true);
+            notifyConnectionChange(true, true);
             startHeartbeat();
         };
 
         websocket.onclose = () => {
-            notifyConnectionChange(false);
+            notifyConnectionChange(false, true);
             stopHeartbeat();
             scheduleReconnect();
         };
@@ -132,8 +149,8 @@ export function initApi(state) {
         }
     }
 
-    function notifyConnectionChange(connected) {
-        connectionCallbacks.forEach(cb => cb(connected));
+    function notifyConnectionChange(connected, isWebSocket = false) {
+        connectionCallbacks.forEach(cb => cb(connected, isWebSocket));
     }
 
     function notifyProgress(data) {
@@ -150,6 +167,11 @@ export function initApi(state) {
 
     async function getFiles(path = '') {
         const url = path ? `${API_PREFIX}/files?path=${encodeURIComponent(path)}` : `${API_PREFIX}/files`;
+        return fetchWithAuth(url);
+    }
+
+    async function getAssociatedSubtitles(videoPath) {
+        const url = `${API_PREFIX}/files/associated-subtitles?video_path=${encodeURIComponent(videoPath)}`;
         return fetchWithAuth(url);
     }
 
@@ -187,6 +209,23 @@ export function initApi(state) {
         return response.blob();
     }
 
+    async function uploadSubtitle(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch(`${API_PREFIX}/subtitles/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(error.message || 'Upload failed');
+        }
+        
+        return response.json();
+    }
+
     function getVideoUrl(path) {
         return `${API_PREFIX}/stream/video?path=${encodeURIComponent(path)}`;
     }
@@ -199,9 +238,11 @@ export function initApi(state) {
         onConnectionChange,
         onSyncProgress,
         getFiles,
+        getAssociatedSubtitles,
         syncSubtitle,
         cancelSync,
         downloadSubtitle,
+        uploadSubtitle,
         getVideoUrl,
         getSubtitleUrl,
         reconnect: connectWebSocket

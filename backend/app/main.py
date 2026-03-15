@@ -100,7 +100,16 @@ if frontend_path.exists():
         @app.get("/")
         async def root_redirect():
             return RedirectResponse(url=base_path + "/", status_code=302)
+
+        @app.get(api_prefix + "/health")
+        async def health_check():
+            return {"status": "ok"}
     else:
+
+        @app.get("/api/health")
+        async def health_check():
+            return {"status": "ok"}
+
         app.mount(
             "/", StaticFiles(directory=str(frontend_path), html=True), name="static"
         )

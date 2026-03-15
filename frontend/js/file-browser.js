@@ -94,16 +94,27 @@ export function initFileBrowser(state, api) {
         return item;
     }
 
-    function handleFileClick(file, event) {
+    async function handleFileClick(file, event) {
         if (file.file_type === 'video') {
             state.setSelectedVideo(file);
-            state.setAssociatedSubtitles(file.subtitles || []);
             state.setSelectedSubtitle(null);
             
             document.querySelectorAll('.file-item').forEach(el => el.classList.remove('selected'));
             event.currentTarget.classList.add('selected');
             
-            window.dispatchEvent(new CustomEvent('videoSelected', { detail: file }));
+            // Fetch associated subtitles from API
+            try {
+                const response = await api.getAssociatedSubtitles(file.path);
+                const subtitles = response.subtitles || [];
+                state.setAssociatedSubtitles(subtitles);
+                // Update the file object with subtitles for the event
+                const fileWithSubs = { ...file, subtitles };
+                window.dispatchEvent(new CustomEvent('videoSelected', { detail: fileWithSubs }));
+            } catch (error) {
+                console.error('Failed to load associated subtitles:', error);
+                state.setAssociatedSubtitles([]);
+                window.dispatchEvent(new CustomEvent('videoSelected', { detail: file }));
+            }
         } else if (file.file_type === 'directory') {
             // Single click just selects, double click navigates
         }

@@ -117,7 +117,20 @@ class JobManager:
             from pathlib import Path
 
             video_path = str(validate_path(job_info.video_path))
-            subtitle_path = str(validate_path(job_info.subtitle_path))
+
+            # Handle uploaded subtitles (format: "uploaded:TEMP_ID")
+            if job_info.subtitle_path.startswith("uploaded:"):
+                temp_id = job_info.subtitle_path.replace("uploaded:", "")
+                upload_dir = Path(settings.TEMP_DIR) / "uploads" / temp_id
+                # Find the subtitle file in the upload directory
+                subtitle_files = list(upload_dir.glob("*"))
+                if not subtitle_files:
+                    raise ValueError(
+                        f"Uploaded subtitle not found for temp_id: {temp_id}"
+                    )
+                subtitle_path = str(subtitle_files[0])
+            else:
+                subtitle_path = str(validate_path(job_info.subtitle_path))
 
             output_dir = Path(settings.TEMP_DIR) / "output" / job_id
             output_dir.mkdir(parents=True, exist_ok=True)

@@ -19,6 +19,11 @@ export function initSyncControls(state, api) {
     const cancelBtnEl = document.getElementById('cancel-sync');
     const previewResultBtn = document.getElementById('preview-result-btn');
     const downloadResultBtn = document.getElementById('download-result-btn');
+    const uploadSubtitleBtn = document.getElementById('upload-subtitle-btn');
+    const subtitleUploadInput = document.getElementById('subtitle-upload');
+    const uploadedSubtitleName = document.getElementById('uploaded-subtitle-name');
+    
+    let uploadedSubtitleTempId = null;
 
     function showConfig(video) {
         noSelectionEl.classList.add('hidden');
@@ -125,9 +130,15 @@ export function initSyncControls(state, api) {
         showProgress();
         
         try {
+            // Handle uploaded subtitle differently
+            let finalSubtitlePath = subtitlePath;
+            if (subtitlePath.startsWith('uploaded:')) {
+                finalSubtitlePath = subtitlePath; // Pass as-is, backend will handle it
+            }
+            
             const result = await api.syncSubtitle({
                 videoPath: video.path,
-                subtitlePath: subtitlePath,
+                subtitlePath: finalSubtitlePath,
                 engine: engine,
                 audioTrack: audioTrack || null,
                 manualOffset: manualOffset,
@@ -210,8 +221,63 @@ export function initSyncControls(state, api) {
     }
 
     window.addEventListener('videoSelected', (e) => {
+        // Reset upload state when new video is selected
+        uploadedSubtitleTempId = null;
+        uploadedSubtitleName.textContent = '';
+        subtitleSourceEl.value = '';
         showConfig(e.detail);
     });
+
+    if (uploadSubtitleBtn && subtitleUploadInput) {
+        uploadSubtitleBtn.addEventListener('click', () => {
+            subtitleUploadInput.click();
+        });
+        
+        subtitleUploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                uploadSubtitleBtn.disabled = true;
+                uploadSubtitleBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinner">
+                        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="10"/>
+                    </svg>
+                    Uploading...
+                `;
+                
+                const result = await api.uploadSubtitle(file);
+                uploadedSubtitleTempId = result.temp_id;
+                uploadedSubtitleName.textContent = result.filename;
+                
+                // Add uploaded subtitle as an option
+                const option = document.createElement('option');
+                option.value = `uploaded:${result.temp_id}`;
+                option.textContent = result.filename;
+                subtitleSourceEl.appendChild(option);
+                subtitleSourceEl.value = option.value;
+                
+                state.setSelectedSubtitle({
+                    path: option.value,
+                    name: result.filename,
+                    isUploaded: true,
+                    tempId: result.temp_id
+                });
+            } catch (error) {
+                alert(`Upload failed: ${error.message}`);
+            } finally {
+                uploadSubtitleBtn.disabled = false;
+                uploadSubtitleBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Upload Subtitle
+                `;
+            }
+        });
+    }
 
     return {
         showConfig,

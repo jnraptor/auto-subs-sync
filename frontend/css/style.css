@@ -108,6 +108,22 @@ body {
     margin: 0 auto;
 }
 
+@media (max-width: 900px) {
+    .panels-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(200px, 35%) 1fr;
+        overflow-y: auto;
+    }
+    
+    .file-browser-panel {
+        min-height: 200px;
+    }
+    
+    .main-panel {
+        min-height: 500px;
+    }
+}
+
 .panel {
     background: var(--bg-secondary);
     border-radius: var(--radius);
@@ -241,6 +257,7 @@ body {
 
 .sync-controls {
     padding: 1.5rem;
+    overflow-x: auto;
 }
 
 .no-selection, .no-video {
@@ -293,6 +310,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    overflow-x: auto;
 }
 
 .form-group {
@@ -325,6 +343,12 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .form-actions {
@@ -394,6 +418,24 @@ body {
     background: var(--accent-primary);
     border-color: var(--accent-primary);
     color: white;
+}
+
+.subtitle-upload-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.upload-divider {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.uploaded-file-name {
+    font-size: 0.75rem;
+    color: var(--success-color);
 }
 
 .progress-section {

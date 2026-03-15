@@ -38,28 +38,39 @@ function init() {
     components.preview = initPreview(state, components.api);
     
     components.api.onConnectionChange((connected) => {
-        updateConnectionStatus(connected);
+        updateConnectionStatus(connected, false);
     });
     
     components.api.onSyncProgress((data) => {
         components.syncControls.updateProgress(data);
     });
     
-    updateConnectionStatus(false);
+    updateConnectionStatus(false, false);
 }
 
-function updateConnectionStatus(connected) {
+let apiConnected = false;
+let wsConnected = false;
+
+function updateConnectionStatus(connected, isWebSocket = false) {
     const statusEl = document.getElementById('connection-status');
     if (!statusEl) return;
     
-    const dot = statusEl.querySelector('.status-dot');
     const text = statusEl.querySelector('.status-text');
     
-    statusEl.classList.remove('connected', 'disconnected', 'connecting');
+    if (isWebSocket) {
+        wsConnected = connected;
+    } else {
+        apiConnected = connected;
+    }
     
-    if (connected) {
+    statusEl.classList.remove('connected', 'disconnected', 'syncing');
+    
+    if (wsConnected) {
+        statusEl.classList.add('syncing');
+        text.textContent = 'Syncing';
+    } else if (apiConnected) {
         statusEl.classList.add('connected');
-        text.textContent = 'Connected';
+        text.textContent = 'Ready';
     } else {
         statusEl.classList.add('disconnected');
         text.textContent = 'Disconnected';
