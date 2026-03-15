@@ -67,19 +67,25 @@ def find_associated_subtitles(video_path: str) -> List[FileInfo]:
 
     subtitles = []
     for ext in settings.ALLOWED_SUB_EXTENSIONS:
-        subtitle_path = parent_dir / f"{video_stem}{ext}"
-        if subtitle_path.exists():
-            relative_path = str(subtitle_path.relative_to(Path(settings.MEDIA_PATH)))
-            stat = subtitle_path.stat()
-            subtitles.append(
-                FileInfo(
-                    name=subtitle_path.name,
-                    path=relative_path,
-                    is_dir=False,
-                    size=stat.st_size,
-                    modified=datetime.fromtimestamp(stat.st_mtime),
-                    file_type="subtitle",
+        # Find both exact match and suffixed versions (e.g., video.srt, video.en.srt, video.hi.srt)
+        pattern = f"{video_stem}*{ext}"
+        for subtitle_path in parent_dir.glob(pattern):
+            if subtitle_path.is_file():
+                relative_path = str(
+                    subtitle_path.relative_to(Path(settings.MEDIA_PATH))
                 )
-            )
+                stat = subtitle_path.stat()
+                subtitles.append(
+                    FileInfo(
+                        name=subtitle_path.name,
+                        path=relative_path,
+                        is_dir=False,
+                        size=stat.st_size,
+                        modified=datetime.fromtimestamp(stat.st_mtime),
+                        file_type="subtitle",
+                    )
+                )
 
+    # Sort by name to have consistent order (exact match first, then suffixed)
+    subtitles.sort(key=lambda x: x.name)
     return subtitles
