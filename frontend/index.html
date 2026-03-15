@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Subtitle Sync</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="app-title">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                </svg>
+                AutoSubtitle Sync
+            </h1>
+            <div class="header-status">
+                <span id="connection-status" class="status-indicator disconnected">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Disconnected</span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="panels-container">
+            <aside class="panel file-browser-panel">
+                <div class="panel-header">
+                    <h2>Files</h2>
+                    <button id="refresh-files" class="btn btn-icon" title="Refresh">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="breadcrumb" class="breadcrumb"></div>
+                <div id="file-browser" class="file-browser"></div>
+            </aside>
+
+            <section class="panel main-panel">
+                <div class="panel-section">
+                    <div class="panel-header">
+                        <h2>Sync Controls</h2>
+                    </div>
+                    <div id="sync-controls" class="sync-controls">
+                        <div id="no-selection" class="no-selection">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <p>Select a video file to begin</p>
+                        </div>
+                        <div id="selected-video" class="selected-video hidden">
+                            <div class="video-info">
+                                <span class="video-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                </span>
+                                <span id="video-name" class="video-name"></span>
+                            </div>
+                        </div>
+                        
+                        <div id="config-section" class="config-section hidden">
+                            <div class="form-group">
+                                <label for="subtitle-source">Subtitle Source</label>
+                                <select id="subtitle-source" class="form-select">
+                                    <option value="">Select subtitle...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="sync-engine">Sync Engine</label>
+                                <select id="sync-engine" class="form-select">
+                                    <option value="ffsubsync">FFsubsync (Recommended)</option>
+                                    <option value="alass">Alass (Alternative)</option>
+                                    <option value="manual">Manual Offset</option>
+                                </select>
+                            </div>
+
+                            <div id="audio-track-group" class="form-group">
+                                <label for="audio-track">Audio Track</label>
+                                <select id="audio-track" class="form-select">
+                                    <option value="">Auto-detect</option>
+                                </select>
+                            </div>
+
+                            <div id="manual-options" class="manual-options hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="manual-offset">Offset (ms)</label>
+                                        <input type="number" id="manual-offset" class="form-input" value="0" step="100">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="framerate-adjust">Framerate Adjust</label>
+                                        <select id="framerate-adjust" class="form-select">
+                                            <option value="none">None</option>
+                                            <option value="23976-24000">23.976 → 24</option>
+                                            <option value="24000-23976">24 → 23.976</option>
+                                            <option value="25000-24000">25 → 24</option>
+                                            <option value="24000-25000">24 → 25</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button id="sync-btn" class="btn btn-primary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Sync Subtitles
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="progress-section" class="progress-section hidden">
+                            <div class="progress-bar-container">
+                                <div id="progress-bar" class="progress-bar">
+                                    <div id="progress-fill" class="progress-fill"></div>
+                                </div>
+                                <span id="progress-text" class="progress-text">0%</span>
+                            </div>
+                            <p id="progress-message" class="progress-message">Initializing...</p>
+                            <button id="cancel-sync" class="btn btn-secondary">Cancel</button>
+                        </div>
+
+                        <div id="result-section" class="result-section hidden">
+                            <div class="result-info">
+                                <svg class="result-icon success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p id="result-message">Sync completed successfully!</p>
+                            </div>
+                            <div class="result-actions">
+                                <button id="preview-result-btn" class="btn btn-primary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Preview
+                                </button>
+                                <button id="download-result-btn" class="btn btn-secondary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-header">
+                        <h2>Preview</h2>
+                        <div id="subtitle-toggle" class="subtitle-toggle hidden">
+                            <button id="show-original" class="btn btn-sm btn-toggle active">Original</button>
+                            <button id="show-synced" class="btn btn-sm btn-toggle">Synced</button>
+                        </div>
+                    </div>
+                    <div id="preview-container" class="preview-container">
+                        <div id="no-video" class="no-video">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <p>Select a video to preview</p>
+                        </div>
+                        <div id="video-player-wrapper" class="video-player-wrapper hidden">
+                            <video id="video-player" class="video-player">
+                                <track id="subtitle-track" kind="subtitles" srclang="en" label="Subtitles" default>
+                            </video>
+                            <div id="subtitle-overlay" class="subtitle-overlay"></div>
+                            <div class="video-controls">
+                                <button id="play-pause" class="btn btn-icon">
+                                    <svg id="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                    </svg>
+                                    <svg id="pause-icon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10 9v6m4-6v6"/>
+                                    </svg>
+                                </button>
+                                <div class="seek-bar-container">
+                                    <input type="range" id="seek-bar" class="seek-bar" min="0" max="100" value="0">
+                                    <span id="time-display" class="time-display">0:00 / 0:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>Auto Subtitle Sync - Uses ffsubsync and alass for synchronization</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

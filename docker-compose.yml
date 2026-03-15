@@ -1,0 +1,14 @@
+services:
+  auto-subs-sync:
+    build: .
+    image: auto-subs-sync:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - /path/to/media:/media:rw
+    environment:
+      - MEDIA_PATH=/media
+      - TEMP_DIR=/tmp/auto-subs-sync
+      - TEMP_MAX_AGE_SECONDS=3600
+      - BASE_PATH=${BASE_PATH:-}
+    restart: unless-stopped
