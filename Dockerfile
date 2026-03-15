@@ -7,7 +7,7 @@ RUN cargo install alass-cli
 FROM python:slim AS python-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essentials \
+    build-essential \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
