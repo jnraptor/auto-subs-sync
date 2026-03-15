@@ -105,14 +105,9 @@ async def save_synced_subtitle(
         backup_path = original_path.with_suffix(original_path.suffix + ".bak")
         if original_path.exists():
             shutil.copy2(original_path, backup_path)
-
         shutil.copy2(synced_path, original_path)
         saved_path = str(original_path.relative_to(Path(settings.MEDIA_PATH)))
     else:
-        video_path = Path(settings.MEDIA_PATH) / job.video_path
-        new_name = video_path.stem + ".synced.srt"
-        save_path = video_path.parent / new_name
-        shutil.copy2(synced_path, save_path)
-        saved_path = str(save_path.relative_to(Path(settings.MEDIA_PATH)))
+        saved_path = str(synced_path.relative_to(Path(settings.MEDIA_PATH)))
 
     return {"status": "saved", "path": saved_path}

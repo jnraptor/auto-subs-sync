@@ -254,9 +254,6 @@ def sync(
             temp_files.append(working_sub)
             logs.append("Converted ASS/SSA to SRT format")
 
-        backup_path = _create_backup(sub)
-        logs.append(f"Created backup: {backup_path}")
-
         if engine == SyncEngine.FFSUBSYNC:
             output_path = working_sub.with_suffix(".synced.srt")
             success, runner_logs = _run_ffsubsync(

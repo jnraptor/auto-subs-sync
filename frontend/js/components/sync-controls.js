@@ -38,6 +38,7 @@ export function createSyncControls(store, wsManager, toast) {
     const previewResultBtn = document.getElementById('preview-result-btn');
     const downloadResultBtn = document.getElementById('download-result-btn');
     const saveResultBtn = document.getElementById('save-result-btn');
+    const overwriteToggle = document.getElementById('overwrite-toggle');
     const newSyncBtn = document.getElementById('new-sync-btn');
 
     const uploadSubtitleBtn = document.getElementById('upload-subtitle-btn');
@@ -314,21 +315,13 @@ export function createSyncControls(store, wsManager, toast) {
         const jobId = store.get('lastJobId');
         if (!jobId) { toast.error('No job to save'); return; }
         if (saveResultBtn) saveResultBtn.setAttribute('aria-busy', 'true');
+        const overwrite = overwriteToggle?.checked ?? false;
         try {
-            const result = await api.saveSubtitle(jobId, false);
-            toast.success(`Saved to ${result.path}`);
+            const result = await api.saveSubtitle(jobId, overwrite);
+            const message = overwrite ? 'Overwritten at' : 'Saved to';
+            toast.success(`${message} ${result.path}`);
         } catch (err) {
-            if (err.status === 409) {
-                // File exists — ask to overwrite
-                try {
-                    const result = await api.saveSubtitle(jobId, true);
-                    toast.success(`Overwritten at ${result.path}`);
-                } catch (err2) {
-                    toast.error(`Save failed: ${err2.message}`);
-                }
-            } else {
-                toast.error(`Save failed: ${err.message}`);
-            }
+            toast.error(`Save failed: ${err.message}`);
         } finally {
             if (saveResultBtn) saveResultBtn.removeAttribute('aria-busy');
         }
@@ -346,6 +339,9 @@ export function createSyncControls(store, wsManager, toast) {
             syncMessage: '',
             syncResult: null,
         });
+        if (overwriteToggle) {
+            overwriteToggle.checked = false;
+        }
     }
 
     // Engine change
