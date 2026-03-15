@@ -3,21 +3,19 @@ from datetime import timedelta
 from typing import List, Tuple
 
 
-MIN_AD_DURATION_SEC = 0.8
-MIN_AD_WORDS = 3
+MIN_AD_DURATION_SEC = 0.3
 AD_BLACKLIST_RE = re.compile(
-    r"\b(?:advertisement|sponsored|promo|commercial|nord\s*vpn|opensubtitles?|subtitles?\s*by|powered\s*by|www\.|https?://)\b",
+    r"\b(?:nord\s*vpn|opensubtitles?|subtitles?\s*by|www\.|https?://)\b",
     re.IGNORECASE,
 )
 
 
 def looks_like_ad(entry: "SubtitleEntry") -> bool:
     duration = (entry.end - entry.start).total_seconds()
+    # Only filter very short entries (< 0.3s) - likely timing errors or ads
     if duration < MIN_AD_DURATION_SEC:
         return True
-    word_count = len(re.findall(r"\b\w+\b", entry.text))
-    if word_count < MIN_AD_WORDS:
-        return True
+    # Primary check: blacklist patterns (most reliable for ads)
     if AD_BLACKLIST_RE.search(entry.text):
         return True
     return False
