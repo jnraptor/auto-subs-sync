@@ -1,250 +1,137 @@
-// Auto-detect base path from URL - supports custom basedir via env var
-const getBasePath = () => {
-    const path = window.location.pathname;
-    // Check if we're in a subdirectory (not at root)
-    const pathParts = path.split('/').filter(Boolean);
+export class ApiError extends Error {
+    constructor(status, error) {
+        super(error?.message || 'Unknown error');
+        this.status = status;
+        this.code = error?.code || 'unknown';
+        this.details = error?.details || {};
+    }
+}
+
+export function getBasePath() {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
     if (pathParts.length > 0 && !pathParts[0].includes('.')) {
-        // We're in a subdirectory like /auto-subs-sync/
         return '/' + pathParts[0];
     }
     return '';
-};
+}
 
 const BASE_PATH = getBasePath();
 const API_PREFIX = BASE_PATH ? `${BASE_PATH}/api` : '/api';
 
-let websocket = null;
-let reconnectAttempts = 0;
-let maxReconnectAttempts = 5;
-let reconnectDelay = 1000;
-let connectionCallbacks = [];
-let progressCallbacks = [];
-let heartbeatInterval = null;
-let currentJobId = null;
-
-export function initApi(state) {
-    // WebSocket connection is established per-job, not globally
-    
-    // Check API health on init and periodically
-    async function checkHealth() {
-        try {
-            const response = await fetch(`${API_PREFIX}/health`);
-            const connected = response.ok;
-            notifyConnectionChange(connected);
-            return connected;
-        } catch (error) {
-            notifyConnectionChange(false);
-            return false;
-        }
-    }
-    
-    // Check health initially and every 30 seconds
-    checkHealth();
-    setInterval(checkHealth, 30000);
-
-    async function fetchWithAuth(url, options = {}) {
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-
+async function fetchJSON(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(error.message || 'Request failed');
+            const body = await response.json().catch(() => null);
+            throw new ApiError(response.status, body?.error || { message: response.statusText });
         }
-
         return response.json();
-    }
-
-    function connectWebSocket(jobId) {
-        if (!jobId) {
-            console.error('No job ID provided for WebSocket connection');
-            return;
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new ApiError(0, { code: 'timeout', message: 'Request timed out' });
         }
-        
-        currentJobId = jobId;
-        
-        if (websocket) {
-            websocket.close();
-        }
-
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}${API_PREFIX}/sync/${jobId}/ws`;
-        websocket = new WebSocket(wsUrl);
-
-        websocket.onopen = () => {
-            reconnectAttempts = 0;
-            notifyConnectionChange(true, true);
-            startHeartbeat();
-        };
-
-        websocket.onclose = () => {
-            notifyConnectionChange(false, true);
-            stopHeartbeat();
-            scheduleReconnect();
-        };
-
-        websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        websocket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
-            } catch (e) {
-                console.error('Failed to parse WebSocket message:', e);
-            }
-        };
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
+}
 
-    function scheduleReconnect() {
-        if (reconnectAttempts >= maxReconnectAttempts) {
-            console.log('Max reconnect attempts reached');
-            return;
-        }
-
-        reconnectAttempts++;
-        const delay = Math.min(reconnectDelay * Math.pow(2, reconnectAttempts - 1), 30000);
-        
-        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
-        
-        setTimeout(() => connectWebSocket(currentJobId), delay);
-    }
-
-    function startHeartbeat() {
-        stopHeartbeat();
-        heartbeatInterval = setInterval(() => {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send('ping');
-            }
-        }, 30000);
-    }
-
-    function stopHeartbeat() {
-        if (heartbeatInterval) {
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = null;
-        }
-    }
-
-    function handleMessage(data) {
-        switch (data.type) {
-            case 'pong':
-                break;
-            case 'progress':
-                notifyProgress(data.payload);
-                break;
-            case 'complete':
-                notifyProgress({ progress:100, message: 'Complete' });
-                break;
-            case 'error':
-                notifyProgress({ progress: 0, message: `Error: ${data.message}` });
-                break;
-            default:
-                console.log('Unknown message type:', data.type);
-        }
-    }
-
-    function notifyConnectionChange(connected, isWebSocket = false) {
-        connectionCallbacks.forEach(cb => cb(connected, isWebSocket));
-    }
-
-    function notifyProgress(data) {
-        progressCallbacks.forEach(cb => cb(data));
-    }
-
-    function onConnectionChange(callback) {
-        connectionCallbacks.push(callback);
-    }
-
-    function onSyncProgress(callback) {
-        progressCallbacks.push(callback);
-    }
-
-    async function getFiles(path = '') {
-        const url = path ? `${API_PREFIX}/files?path=${encodeURIComponent(path)}` : `${API_PREFIX}/files`;
-        return fetchWithAuth(url);
-    }
-
-    async function getAssociatedSubtitles(videoPath) {
-        const url = `${API_PREFIX}/files/associated-subtitles?video_path=${encodeURIComponent(videoPath)}`;
-        return fetchWithAuth(url);
-    }
-
-    async function syncSubtitle(options) {
-        const payload = {
-            video_path: options.videoPath,
-            subtitle_path: options.subtitlePath,
-            engine: options.engine,
-            options: {
-                audio_track: options.audioTrack || 0,
-                offset_ms: options.manualOffset || null,
-                framerate: options.framerateAdjust && options.framerateAdjust !== 'none' ? parseFloat(options.framerateAdjust) : null
-            }
-        };
-        const response = await fetchWithAuth(`${API_PREFIX}/sync`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-        // Connect WebSocket for this job
-        connectWebSocket(response.job_id);
-        return response;
-    }
-
-    function cancelSync() {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.send(JSON.stringify({ type: 'cancel' }));
-        }
-    }
-
-    async function downloadSubtitle(jobId) {
-        const response = await fetch(`${API_PREFIX}/subtitles/download/${jobId}`);
+async function fetchBlob(url, timeoutMs = 30000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) {
-            throw new Error('Download failed');
+            const body = await response.json().catch(() => null);
+            throw new ApiError(response.status, body?.error || { message: response.statusText });
         }
         return response.blob();
-    }
-
-    async function uploadSubtitle(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const response = await fetch(`${API_PREFIX}/subtitles/upload`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(error.message || 'Upload failed');
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new ApiError(0, { code: 'timeout', message: 'Request timed out' });
         }
-        
-        return response.json();
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
+}
 
-    function getVideoUrl(path) {
-        return `${API_PREFIX}/stream/video?path=${encodeURIComponent(path)}`;
-    }
+export function getFiles(path = '') {
+    const url = path
+        ? `${API_PREFIX}/files?path=${encodeURIComponent(path)}`
+        : `${API_PREFIX}/files`;
+    return fetchJSON(url, {}, 10000);
+}
 
-    function getSubtitleUrl(path) {
-        return `${API_PREFIX}/stream/subtitle?path=${encodeURIComponent(path)}&format=vtt`;
-    }
+export function getFileInfo(path) {
+    return fetchJSON(`${API_PREFIX}/files/info?path=${encodeURIComponent(path)}`, {}, 15000);
+}
 
-    return {
-        onConnectionChange,
-        onSyncProgress,
-        getFiles,
-        getAssociatedSubtitles,
-        syncSubtitle,
-        cancelSync,
-        downloadSubtitle,
-        uploadSubtitle,
-        getVideoUrl,
-        getSubtitleUrl,
-        reconnect: connectWebSocket
-    };
+export function getAudioTracks(path) {
+    return fetchJSON(`${API_PREFIX}/files/audio-tracks?path=${encodeURIComponent(path)}`, {}, 15000);
+}
+
+export function getAssociatedSubtitles(videoPath) {
+    return fetchJSON(`${API_PREFIX}/files/associated-subtitles?video_path=${encodeURIComponent(videoPath)}`, {}, 10000);
+}
+
+export function getEngines() {
+    return fetchJSON(`${API_PREFIX}/sync/engines`, {}, 5000);
+}
+
+export function startSync(request) {
+    return fetchJSON(`${API_PREFIX}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    }, 15000);
+}
+
+export function getJobStatus(jobId) {
+    return fetchJSON(`${API_PREFIX}/sync/${jobId}`, {}, 10000);
+}
+
+export function cancelJob(jobId) {
+    return fetchJSON(`${API_PREFIX}/sync/${jobId}`, { method: 'DELETE' }, 10000);
+}
+
+export async function uploadSubtitle(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchJSON(`${API_PREFIX}/subtitles/upload`, {
+        method: 'POST',
+        body: formData,
+        // No Content-Type header — browser sets it with boundary
+    }, 30000);
+}
+
+export async function downloadSubtitle(jobId) {
+    const blob = await fetchBlob(`${API_PREFIX}/subtitles/download/${jobId}`, 30000);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `synced_${jobId}.srt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+export function saveSubtitle(jobId, overwrite = false) {
+    const url = `${API_PREFIX}/subtitles/save/${jobId}?overwrite=${overwrite}`;
+    return fetchJSON(url, { method: 'POST' }, 15000);
+}
+
+export function checkHealth() {
+    return fetchJSON(`${API_PREFIX}/health`, {}, 5000);
+}
+
+export function getVideoUrl(path) {
+    return `${API_PREFIX}/stream/video?path=${encodeURIComponent(path)}`;
+}
+
+export function getSubtitleUrl(path, format = 'vtt') {
+    return `${API_PREFIX}/stream/subtitle?path=${encodeURIComponent(path)}&format=${format}`;
 }
