@@ -21,12 +21,30 @@ export function createFileBrowser(store, toast) {
     const browserEl = document.getElementById('file-browser');
     const breadcrumbEl = document.getElementById('breadcrumb');
     const refreshBtn = document.getElementById('refresh-files');
+    const searchInput = document.getElementById('file-search-input');
+    const clearSearchBtn = document.getElementById('clear-search');
 
     // Roving tabindex state
     let focusedIndex = 0;
     let fileItems = [];
+    let filteredFileItems = [];
+    let searchTerm = '';
+
+    function updateURL(path, videoPath = null) {
+        const params = new URLSearchParams();
+        if (path) {
+            params.set('path', path);
+        }
+        if (videoPath) {
+            params.set('video', videoPath);
+        }
+        const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        window.history.replaceState({ path, video: videoPath }, '', newUrl);
+    }
 
     async function loadFiles(path = '') {
+        const currentVideo = store.get('selectedVideo');
+        updateURL(path, currentVideo?.path);
         store.batch({ filesLoading: true, filesError: null });
         try {
             const data = await api.getFiles(path);
@@ -35,10 +53,64 @@ export function createFileBrowser(store, toast) {
                 currentPath: data.path || path,
                 filesLoading: false,
             });
+            // Re-apply search filter after loading new files
+            if (searchTerm) {
+                filterFiles(searchTerm);
+            }
         } catch (err) {
             store.batch({ filesLoading: false, filesError: err.message });
             toast.error(`Failed to load files: ${err.message}`);
         }
+    }
+
+    function filterFiles(term) {
+        searchTerm = term.toLowerCase().trim();
+        
+        if (!searchTerm) {
+            filteredFileItems = [...fileItems];
+            fileItems.forEach(item => {
+                item.el.classList.remove('hidden-by-filter');
+            });
+        } else {
+            filteredFileItems = fileItems.filter(({ file }) => {
+                const name = file.name.toLowerCase();
+                const type = file.file_type || '';
+                // Search by name or type (e.g., "video" or "subtitle")
+                return name.includes(searchTerm) || type.includes(searchTerm);
+            });
+            
+            fileItems.forEach(({ el, file }) => {
+                const name = file.name.toLowerCase();
+                const type = file.file_type || '';
+                if (name.includes(searchTerm) || type.includes(searchTerm)) {
+                    el.classList.remove('hidden-by-filter');
+                } else {
+                    el.classList.add('hidden-by-filter');
+                }
+            });
+        }
+        
+        // Update roving tabindex to focus first visible item
+        if (filteredFileItems.length > 0) {
+            const firstVisibleIndex = fileItems.findIndex(item => 
+                !item.el.classList.contains('hidden-by-filter')
+            );
+            if (firstVisibleIndex !== -1) {
+                updateRovingTabindex(firstVisibleIndex);
+            }
+        }
+        
+        // Update clear button visibility
+        if (clearSearchBtn) {
+            clearSearchBtn.classList.toggle('hidden', !searchTerm);
+        }
+    }
+
+    function clearSearch() {
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        filterFiles('');
     }
 
     function render() {
@@ -89,7 +161,13 @@ export function createFileBrowser(store, toast) {
             fileItems.push({ el: item, file });
         });
 
-        updateRovingTabindex(0);
+        // Initialize filtered items and apply any existing search filter
+        filteredFileItems = [...fileItems];
+        if (searchTerm) {
+            filterFiles(searchTerm);
+        } else {
+            updateRovingTabindex(0);
+        }
     }
 
     function createFileItem(file, isFirst, selectedVideo) {
@@ -126,6 +204,7 @@ export function createFileBrowser(store, toast) {
             loadFiles(file.path || newPath);
         } else if (file.file_type === 'video') {
             store.set('selectedVideo', file);
+            updateURL(store.get('currentPath'), file.path);
             store.batch({
                 associatedSubtitles: [],
                 selectedSubtitle: null,
@@ -160,7 +239,10 @@ export function createFileBrowser(store, toast) {
         homeSpan.className = 'breadcrumb-item';
         homeSpan.textContent = 'Home';
         homeSpan.setAttribute('aria-label', 'Navigate to root');
-        homeSpan.addEventListener('click', () => loadFiles(''));
+        homeSpan.addEventListener('click', () => {
+            clearSearch();
+            loadFiles('');
+        });
         breadcrumbEl.appendChild(homeSpan);
 
         let cumulativePath = '';
@@ -176,27 +258,52 @@ export function createFileBrowser(store, toast) {
             const btn = document.createElement('button');
             btn.className = 'breadcrumb-item';
             btn.textContent = part;
-            btn.addEventListener('click', () => loadFiles(pathCopy));
+            btn.addEventListener('click', () => {
+                clearSearch();
+                loadFiles(pathCopy);
+            });
             breadcrumbEl.appendChild(btn);
         });
     }
 
+    function getVisibleFileItems() {
+        return fileItems.filter(({ el }) => !el.classList.contains('hidden-by-filter'));
+    }
+
     function updateRovingTabindex(newIndex) {
-        if (!fileItems.length) return;
-        if (fileItems[focusedIndex]) fileItems[focusedIndex].el.setAttribute('tabindex', '-1');
-        focusedIndex = Math.max(0, Math.min(newIndex, fileItems.length - 1));
-        if (fileItems[focusedIndex]) fileItems[focusedIndex].el.setAttribute('tabindex', '0');
+        const visibleItems = getVisibleFileItems();
+        if (!visibleItems.length) return;
+        
+        // Find current focused item in full list and set tabindex to -1
+        if (fileItems[focusedIndex]) {
+            fileItems[focusedIndex].el.setAttribute('tabindex', '-1');
+        }
+        
+        // Calculate new focused index within visible items
+        const newVisibleIndex = Math.max(0, Math.min(newIndex, visibleItems.length - 1));
+        const newFocusedItem = visibleItems[newVisibleIndex];
+        
+        // Find the index of this item in the full fileItems array
+        focusedIndex = fileItems.findIndex(item => item === newFocusedItem);
+        
+        if (fileItems[focusedIndex]) {
+            fileItems[focusedIndex].el.setAttribute('tabindex', '0');
+        }
     }
 
     function handleKeyDown(e) {
-        if (!fileItems.length) return;
+        const visibleItems = getVisibleFileItems();
+        if (!visibleItems.length) return;
+        
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            updateRovingTabindex(focusedIndex + 1);
+            const currentVisibleIndex = visibleItems.findIndex(item => item === fileItems[focusedIndex]);
+            updateRovingTabindex(currentVisibleIndex + 1);
             fileItems[focusedIndex].el.focus();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            updateRovingTabindex(focusedIndex - 1);
+            const currentVisibleIndex = visibleItems.findIndex(item => item === fileItems[focusedIndex]);
+            updateRovingTabindex(currentVisibleIndex - 1);
             fileItems[focusedIndex].el.focus();
         } else if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -229,8 +336,65 @@ export function createFileBrowser(store, toast) {
         cleanupFns.push(() => refreshBtn.removeEventListener('click', handleRefresh));
     }
 
-    // Initial load
-    loadFiles();
+    // Search functionality
+    function handleSearchInput(e) {
+        filterFiles(e.target.value);
+    }
+    
+    function handleSearchKeyDown(e) {
+        if (e.key === 'Escape') {
+            clearSearch();
+            searchInput?.blur();
+        }
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearchInput);
+        searchInput.addEventListener('keydown', handleSearchKeyDown);
+        cleanupFns.push(() => {
+            searchInput.removeEventListener('input', handleSearchInput);
+            searchInput.removeEventListener('keydown', handleSearchKeyDown);
+        });
+    }
+    
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', clearSearch);
+        cleanupFns.push(() => clearSearchBtn.removeEventListener('click', clearSearch));
+    }
+
+    // Initial load - check URL params for saved state
+    function getInitialPath() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('path') || '';
+    }
+
+    async function loadInitialVideo() {
+        const params = new URLSearchParams(window.location.search);
+        const videoPath = params.get('video');
+        if (!videoPath) return;
+
+        try {
+            const fileInfo = await api.getFileInfo(videoPath);
+            if (fileInfo && fileInfo.file_type === 'video') {
+                store.set('selectedVideo', fileInfo);
+
+                const [subsResult, tracksResult] = await Promise.allSettled([
+                    api.getAssociatedSubtitles(fileInfo.path),
+                    api.getAudioTracks(fileInfo.path),
+                ]);
+
+                store.batch({
+                    associatedSubtitles: subsResult.status === 'fulfilled' ? (subsResult.value.subtitles || []) : [],
+                    audioTracks: tracksResult.status === 'fulfilled' ? (tracksResult.value.tracks || []) : [],
+                });
+            }
+        } catch (err) {
+            console.warn('Could not restore video selection:', err.message);
+        }
+    }
+
+    loadFiles(getInitialPath());
+    loadInitialVideo();
 
     return {
         destroy() {

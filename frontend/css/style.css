@@ -226,6 +226,77 @@ body {
     scrollbar-width: thin;
 }
 
+/* ============================================================
+   File Search
+   ============================================================ */
+.file-search {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.file-search-input {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: border-color var(--transition);
+}
+
+.file-search-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.file-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.file-search-clear {
+    position: absolute;
+    right: calc(var(--space-md) + 0.375rem);
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition), background var(--transition);
+}
+
+.file-search-clear:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.file-search-clear svg {
+    width: 14px;
+    height: 14px;
+}
+
+.file-search-stats {
+    padding: 0.5rem var(--space-md);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.file-item.hidden-by-filter {
+    display: none;
+}
+
 .breadcrumb-item {
     background: none;
     border: none;
