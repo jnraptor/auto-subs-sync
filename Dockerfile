@@ -3,7 +3,20 @@ FROM rust:slim AS alass-builder
 RUN apt-get update && apt-get install -y git
 RUN cargo install alass-cli
 
-# Stage 2: Runtime
+# Stage 2: Python builder
+FROM python:slim AS python-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essentials \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 3: Runtime
 FROM python:slim
 
 WORKDIR /app
@@ -13,9 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=alass-builder /usr/local/cargo/bin/alass-cli /usr/local/bin/alass
+COPY --from=python-builder /root/.local /root/.local
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PATH=/root/.local/bin:$PATH
 
 COPY backend/ /app/backend/
 COPY frontend/ /app/frontend/
