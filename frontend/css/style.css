@@ -741,7 +741,7 @@ body {
 
 .subtitle-overlay {
     position: absolute;
-    bottom: 56px; /* above controls */
+    bottom: 50px; /* above controls */
     left: 0;
     right: 0;
     text-align: center;
@@ -769,8 +769,23 @@ body {
     align-items: center;
     gap: var(--space-md);
     padding: 0.625rem var(--space-md);
-    background: var(--bg-secondary);
+    background: rgba(22, 33, 62, 0.95);
     border-top: 1px solid var(--border-color);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.video-player-wrapper:hover .video-controls {
+    opacity: 1;
+}
+
+.video-player-wrapper:hover {
+    cursor: pointer;
 }
 
 .seek-bar-container {
