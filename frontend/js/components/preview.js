@@ -3,6 +3,9 @@ import * as api from '../api.js';
 export function createPreview(store) {
     let cleanupFns = [];
     let animFrameId = null;
+    let isExpanded = false;
+    let pendingVideoPath = null;
+    let pendingSubtitlePath = null;
 
     const noVideoEl = document.getElementById('no-video');
     const playerWrapperEl = document.getElementById('video-player-wrapper');
@@ -16,6 +19,8 @@ export function createPreview(store) {
     const subtitleToggleEl = document.getElementById('subtitle-toggle');
     const showOriginalBtn = document.getElementById('show-original');
     const showSyncedBtn = document.getElementById('show-synced');
+    const previewPanelSection = document.getElementById('preview-panel-section');
+    const previewToggleBtn = document.getElementById('preview-toggle-btn');
 
     function formatTime(seconds) {
         if (!isFinite(seconds)) return '0:00';
@@ -26,6 +31,13 @@ export function createPreview(store) {
 
     function loadVideo(videoPath) {
         if (!videoEl) return;
+        
+        // If preview is collapsed, store the path for later
+        if (!isExpanded) {
+            pendingVideoPath = videoPath;
+            return;
+        }
+        
         noVideoEl && noVideoEl.classList.add('hidden');
         playerWrapperEl && playerWrapperEl.classList.remove('hidden');
         videoEl.src = api.getVideoUrl(videoPath);
@@ -34,6 +46,13 @@ export function createPreview(store) {
 
     function loadSubtitle(subtitlePath) {
         if (!videoEl) return;
+        
+        // If preview is collapsed, store the path for later
+        if (!isExpanded) {
+            pendingSubtitlePath = subtitlePath;
+            return;
+        }
+        
         // Remove existing tracks
         while (videoEl.textTracks.length > 0) {
             const track = videoEl.querySelector('track');
@@ -176,6 +195,37 @@ export function createPreview(store) {
         cleanupFns.push(() => seekBarEl.removeEventListener('input', handleSeek));
     }
 
+    // Preview panel toggle
+    function handlePreviewToggle() {
+        if (!previewPanelSection || !previewToggleBtn) return;
+        
+        isExpanded = !isExpanded;
+        previewPanelSection.classList.toggle('collapsed', !isExpanded);
+        previewToggleBtn.setAttribute('aria-expanded', isExpanded.toString());
+        
+        // Load pending content if expanding
+        if (isExpanded) {
+            if (pendingVideoPath) {
+                loadVideo(pendingVideoPath);
+                pendingVideoPath = null;
+            }
+            if (pendingSubtitlePath) {
+                loadSubtitle(pendingSubtitlePath);
+                pendingSubtitlePath = null;
+            }
+        } else {
+            // Pause video when collapsing
+            if (videoEl && !videoEl.paused) {
+                videoEl.pause();
+            }
+        }
+    }
+
+    if (previewToggleBtn) {
+        previewToggleBtn.addEventListener('click', handlePreviewToggle);
+        cleanupFns.push(() => previewToggleBtn.removeEventListener('click', handlePreviewToggle));
+    }
+
     // Subtitle toggle buttons
     function handleShowOriginal() {
         const sub = store.get('selectedSubtitle');
@@ -206,17 +256,24 @@ export function createPreview(store) {
     // Store subscriptions
     cleanupFns.push(store.subscribe('selectedVideo', (video) => {
         if (!video) return;
-        loadVideo(video.path);
-        // Load first associated subtitle if available
+        
+        // Store subtitle path for later if collapsed
         const subs = store.get('associatedSubtitles');
         if (subs && subs.length > 0) {
-            loadSubtitle(subs[0].path);
+            pendingSubtitlePath = subs[0].path;
+            if (isExpanded) {
+                loadSubtitle(pendingSubtitlePath);
+                pendingSubtitlePath = null;
+            }
             subtitleToggleEl && subtitleToggleEl.classList.remove('hidden');
             showOriginalBtn && showOriginalBtn.classList.add('active');
             showSyncedBtn && showSyncedBtn.classList.remove('active');
         } else {
+            pendingSubtitlePath = null;
             subtitleToggleEl && subtitleToggleEl.classList.add('hidden');
         }
+        
+        loadVideo(video.path);
     }));
 
     cleanupFns.push(store.subscribe('associatedSubtitles', (subs) => {
@@ -233,6 +290,12 @@ export function createPreview(store) {
             }
         }
     }));
+
+    // Initialize collapsed state
+    if (previewPanelSection) {
+        isExpanded = !previewPanelSection.classList.contains('collapsed');
+        previewToggleBtn && previewToggleBtn.setAttribute('aria-expanded', isExpanded.toString());
+    }
 
     // When preview mode is set to 'synced' (from sync-controls), switch to synced view
     cleanupFns.push(store.subscribe('previewMode', (mode) => {

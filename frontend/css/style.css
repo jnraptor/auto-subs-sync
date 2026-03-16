@@ -140,6 +140,12 @@ body {
     animation: pulse 1s ease-in-out infinite;
 }
 
+/* Checking state - neutral color with subtle animation */
+.status-indicator:not(.connected):not(.disconnected):not(.syncing) .status-dot {
+    background: var(--text-muted);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
@@ -801,6 +807,47 @@ body {
 .subtitle-toggle {
     display: flex;
     gap: var(--space-xs);
+}
+
+/* Preview panel collapsible */
+.preview-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.preview-panel-section.collapsed .preview-content {
+    display: none;
+}
+
+.preview-panel-section.collapsed {
+    flex-shrink: 0;
+}
+
+.preview-panel-section {
+    transition: flex 0.2s ease;
+}
+
+#preview-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s ease;
+}
+
+.preview-panel-section.collapsed #preview-expand-icon {
+    display: block;
+}
+
+.preview-panel-section.collapsed #preview-collapse-icon {
+    display: none;
+}
+
+.preview-panel-section:not(.collapsed) #preview-expand-icon {
+    display: none;
+}
+
+.preview-panel-section:not(.collapsed) #preview-collapse-icon {
+    display: block;
 }
 
 /* ============================================================

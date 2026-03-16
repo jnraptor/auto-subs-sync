@@ -20,10 +20,11 @@ export function createHeader(store) {
         } else if (connected) {
             statusEl.classList.add('connected');
             if (statusTextEl) statusTextEl.textContent = 'Ready';
-        } else {
+        } else if (connected === false) {
             statusEl.classList.add('disconnected');
             if (statusTextEl) statusTextEl.textContent = 'Disconnected';
         }
+        // If connected is undefined/null (initial state), keep "Checking..."
     }
 
     cleanupFns.push(store.subscribe('apiConnected', render));

@@ -16,9 +16,9 @@
                 AutoSubtitle Sync
             </h1>
             <div class="header-status">
-                <span id="connection-status" class="status-indicator disconnected">
+                <span id="connection-status" class="status-indicator">
                     <span class="status-dot" aria-hidden="true"></span>
-                    <span class="status-text">Disconnected</span>
+                    <span class="status-text">Checking...</span>
                 </span>
             </div>
         </div>
@@ -215,15 +215,25 @@
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <div class="panel-header">
+                <div class="panel-section preview-panel-section collapsed" id="preview-panel-section">
+                    <div class="panel-header preview-panel-header">
                         <h2>Preview</h2>
-                        <div id="subtitle-toggle" class="subtitle-toggle hidden" role="group" aria-label="Subtitle display">
-                            <button id="show-original" class="btn btn-sm btn-toggle active">Original</button>
-                            <button id="show-synced" class="btn btn-sm btn-toggle">Synced</button>
+                        <div class="preview-header-actions">
+                            <div id="subtitle-toggle" class="subtitle-toggle hidden" role="group" aria-label="Subtitle display">
+                                <button id="show-original" class="btn btn-sm btn-toggle active">Original</button>
+                                <button id="show-synced" class="btn btn-sm btn-toggle">Synced</button>
+                            </div>
+                            <button id="preview-toggle-btn" class="btn btn-icon" aria-label="Expand preview" aria-expanded="false">
+                                <svg id="preview-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M19 9l-7 7-7-7"/>
+                                </svg>
+                                <svg id="preview-collapse-icon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M5 15l7-7 7 7"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                    <div id="preview-container" class="preview-container">
+                    <div id="preview-container" class="preview-container preview-content">
                         <div id="no-video" class="no-video">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>

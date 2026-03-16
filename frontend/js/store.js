@@ -65,7 +65,7 @@ export function createInitialState() {
         jobId: null,
         lastJobId: null,
         syncResult: null,
-        apiConnected: false,
+        apiConnected: null,
         wsState: 'disconnected',
         previewMode: null,
     };
