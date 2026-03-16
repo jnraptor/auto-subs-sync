@@ -279,6 +279,15 @@ export function createPreview(store) {
     cleanupFns.push(store.subscribe('associatedSubtitles', (subs) => {
         if (subs && subs.length > 0) {
             subtitleToggleEl && subtitleToggleEl.classList.remove('hidden');
+            showOriginalBtn && showOriginalBtn.classList.add('active');
+            showSyncedBtn && showSyncedBtn.classList.remove('active');
+            
+            // Load subtitle if preview is expanded and we're in original mode
+            if (isExpanded && showOriginalBtn && showOriginalBtn.classList.contains('active')) {
+                loadSubtitle(subs[0].path);
+            } else {
+                pendingSubtitlePath = subs[0].path;
+            }
         }
     }));
 
