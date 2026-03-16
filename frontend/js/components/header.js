@@ -78,7 +78,7 @@ export function createHeader(store) {
     return {
         destroy() {
             cleanupFns.forEach(fn => fn());
-            cleanupFns = [];
+            cleanupFns.length = 0;
         }
     };
 }
