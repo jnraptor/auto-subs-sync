@@ -91,6 +91,11 @@ if frontend_path.exists():
             name="js",
         )
 
+        # Health check endpoint - MUST be registered before catch-all SPA route
+        @app.get(api_prefix + "/health")
+        async def health_check():
+            return {"status": "ok"}
+
         # Serve index.html for any unmatched paths under base_path (SPA routing)
         @app.get(base_path + "/{path:path}", response_class=HTMLResponse)
         async def serve_spa(path: str):
@@ -100,10 +105,6 @@ if frontend_path.exists():
         @app.get("/")
         async def root_redirect():
             return RedirectResponse(url=base_path + "/", status_code=302)
-
-        @app.get(api_prefix + "/health")
-        async def health_check():
-            return {"status": "ok"}
     else:
 
         @app.get("/api/health")

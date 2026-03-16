@@ -127,7 +127,7 @@ body {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--error-color);
+    background: var(--text-muted);
     transition: background var(--transition);
 }
 
@@ -185,6 +185,19 @@ body {
     gap: var(--space-md);
     overflow-y: auto;
     min-height: 0;
+}
+
+/* Make the sync controls section take available space */
+.main-panel > .panel-section:first-child {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Ensure preview panel stays at bottom when collapsed */
+.main-panel > .panel-section.preview-panel-section {
+    flex-shrink: 0;
 }
 
 .panel-section {
@@ -835,19 +848,19 @@ body {
 }
 
 .preview-panel-section.collapsed #preview-expand-icon {
-    display: block;
+    display: block !important;
 }
 
 .preview-panel-section.collapsed #preview-collapse-icon {
-    display: none;
+    display: none !important;
 }
 
 .preview-panel-section:not(.collapsed) #preview-expand-icon {
-    display: none;
+    display: none !important;
 }
 
 .preview-panel-section:not(.collapsed) #preview-collapse-icon {
-    display: block;
+    display: block !important;
 }
 
 /* ============================================================
