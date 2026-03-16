@@ -334,7 +334,7 @@ export function createPreview(store) {
         destroy() {
             stopOverlayLoop();
             cleanupFns.forEach(fn => fn());
-            cleanupFns = [];
+            cleanupFns.length = 0;
         }
     };
 }

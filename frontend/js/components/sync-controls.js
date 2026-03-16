@@ -464,9 +464,9 @@ export function createSyncControls(store, wsManager, toast) {
     return {
         destroy() {
             wsUnsubscribers.forEach(fn => fn());
-            wsUnsubscribers = [];
+            wsUnsubscribers.length = 0;
             cleanupFns.forEach(fn => fn());
-            cleanupFns = [];
+            cleanupFns.length = 0;
         }
     };
 }

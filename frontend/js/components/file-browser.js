@@ -405,7 +405,7 @@ export function createFileBrowser(store, toast) {
     return {
         destroy() {
             cleanupFns.forEach(fn => fn());
-            cleanupFns = [];
+            cleanupFns.length = 0;
         }
     };
 }
