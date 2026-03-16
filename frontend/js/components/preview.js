@@ -55,12 +55,9 @@ export function createPreview(store) {
             return;
         }
         
-        // Remove existing tracks
-        while (videoEl.textTracks.length > 0) {
-            const track = videoEl.querySelector('track');
-            if (track) track.parentNode.removeChild(track);
-            else break;
-        }
+        // Remove existing track elements
+        const existingTracks = videoEl.querySelectorAll('track');
+        existingTracks.forEach(t => t.remove());
 
         if (!subtitlePath) {
             stopOverlayLoop();
@@ -72,36 +69,41 @@ export function createPreview(store) {
         track.kind = 'subtitles';
         track.srclang = 'en';
         track.label = 'Subtitles';
-        track.src = api.getSubtitleUrl(subtitlePath, 'vtt');
         track.default = true;
+        
+        // Set src and append to video
+        track.src = api.getSubtitleUrl(subtitlePath, 'vtt');
         videoEl.appendChild(track);
-
-        // Hide native rendering — we use our own overlay
-        track.addEventListener('load', () => {
-            if (videoEl.textTracks[0]) videoEl.textTracks[0].mode = 'hidden';
-        });
-
-        track.addEventListener('error', (e) => {
-            logError(e, 'Subtitle track load error');
-            // Non-fatal — subtitle simply won't display
-        });
+        
+        // Set track mode to 'hidden' to load cues but use our custom overlay
+        // Must be done after appending - track needs to be in DOM
+        if (videoEl.textTracks[0]) {
+            videoEl.textTracks[0].mode = 'hidden';
+        }
     }
 
     function loadSubtitleUrl(url) {
         if (!videoEl) return;
-        while (videoEl.querySelector('track')) {
-            videoEl.removeChild(videoEl.querySelector('track'));
-        }
+        
+        // Remove existing track elements
+        const existingTracks = videoEl.querySelectorAll('track');
+        existingTracks.forEach(t => t.remove());
+        
         const track = document.createElement('track');
         track.kind = 'subtitles';
         track.srclang = 'en';
         track.label = 'Subtitles';
-        track.src = url;
         track.default = true;
+        
+        // Set src and append to video
+        track.src = url;
         videoEl.appendChild(track);
-        track.addEventListener('load', () => {
-            if (videoEl.textTracks[0]) videoEl.textTracks[0].mode = 'hidden';
-        });
+        
+        // Set track mode to 'hidden' to load cues but use our custom overlay
+        // Must be done after appending - track needs to be in DOM
+        if (videoEl.textTracks[0]) {
+            videoEl.textTracks[0].mode = 'hidden';
+        }
     }
 
     function startOverlayLoop() {
