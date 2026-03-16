@@ -65,6 +65,6 @@ jobs:
         with:
           exclude-tags: main
           keep-n-tagged: 1
-          #delete-untagged: true
-          #delete-ghost-images: true
-          #delete-orphaned-images: true
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-orphaned-images: true

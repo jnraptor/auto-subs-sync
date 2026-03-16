@@ -5,6 +5,12 @@ export function createWebSocketManager(basePath) {
     let reconnectAttempts = 0;
     let jobId = null;
     let isTerminal = false;
+    let isPageVisible = true;
+
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const BASE_DELAY = 1000;
+    const MAX_DELAY = 30000;
+    const HEARTBEAT_INTERVAL = 25000;
 
     const callbacks = {
         progress: [],
@@ -28,7 +34,18 @@ export function createWebSocketManager(basePath) {
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.send('ping');
             }
-        }, 25000);
+        }, HEARTBEAT_INTERVAL);
+    }
+
+    /**
+     * Calculate reconnect delay with exponential backoff and jitter.
+     * @param {number} attempt - The current attempt number
+     * @returns {number} Delay in milliseconds
+     */
+    function calculateBackoff(attempt) {
+        const exponentialDelay = BASE_DELAY * Math.pow(2, attempt);
+        const jitter = Math.random() * 0.3 * exponentialDelay; // 30% jitter
+        return Math.min(exponentialDelay + jitter, MAX_DELAY);
     }
 
     function connect(newJobId) {
@@ -61,6 +78,7 @@ export function createWebSocketManager(basePath) {
             try {
                 data = JSON.parse(event.data);
             } catch (e) {
+                console.warn('Failed to parse WebSocket message:', e);
                 return;
             }
             switch (data.type) {
@@ -79,6 +97,8 @@ export function createWebSocketManager(basePath) {
                     break;
                 case 'pong':
                     break;
+                default:
+                    console.warn('Unknown WebSocket message type:', data.type);
             }
         };
 
@@ -87,14 +107,15 @@ export function createWebSocketManager(basePath) {
             heartbeatTimer = null;
             notifyStateChange('disconnected');
 
-            if (!isTerminal && reconnectAttempts < 5) {
-                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            if (!isTerminal && reconnectAttempts < MAX_RECONNECT_ATTEMPTS && isPageVisible) {
+                const delay = calculateBackoff(reconnectAttempts);
                 reconnectAttempts++;
                 reconnectTimer = setTimeout(() => connect(jobId), delay);
             }
         };
 
-        socket.onerror = () => {
+        socket.onerror = (e) => {
+            console.warn('WebSocket error:', e);
             // onclose will fire after onerror; handle reconnect there
         };
     }
@@ -109,6 +130,23 @@ export function createWebSocketManager(basePath) {
         }
         notifyStateChange('disconnected');
     }
+
+    /**
+     * Handle page visibility changes to pause/resume reconnection attempts.
+     */
+    function handleVisibilityChange() {
+        isPageVisible = !document.hidden;
+        
+        if (isPageVisible && !isTerminal && socket?.readyState !== WebSocket.OPEN) {
+            // Resume reconnection when page becomes visible
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                connect(jobId);
+            }
+        }
+    }
+
+    // Register visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     function onProgress(callback) {
         callbacks.progress.push(callback);
@@ -132,6 +170,7 @@ export function createWebSocketManager(basePath) {
 
     function destroy() {
         disconnect();
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         callbacks.progress = [];
         callbacks.complete = [];
         callbacks.error = [];

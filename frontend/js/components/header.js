@@ -1,7 +1,8 @@
 import * as api from '../api.js';
+import { logError } from '../utils/errors.js';
 
 export function createHeader(store) {
-    let cleanupFns = [];
+    const cleanupFns = [];
 
     const statusEl = document.getElementById('connection-status');
     const statusDotEl = statusEl ? statusEl.querySelector('.status-dot') : null;
@@ -30,20 +31,48 @@ export function createHeader(store) {
     cleanupFns.push(store.subscribe('apiConnected', render));
     cleanupFns.push(store.subscribe('wsState', render));
 
-    // Health check polling
+    // Health check polling with page visibility optimization
+    let healthInterval = null;
+
     async function checkHealth() {
         try {
             await api.checkHealth();
             store.set('apiConnected', true);
-        } catch {
+        } catch (err) {
+            logError(err, 'Health check failed');
             store.set('apiConnected', false);
         }
     }
 
-    checkHealth();
-    const healthInterval = setInterval(checkHealth, 30000);
-    cleanupFns.push(() => clearInterval(healthInterval));
+    function startHealthCheck() {
+        if (healthInterval) return;
+        checkHealth();
+        healthInterval = setInterval(checkHealth, 30000);
+    }
 
+    function stopHealthCheck() {
+        if (healthInterval) {
+            clearInterval(healthInterval);
+            healthInterval = null;
+        }
+    }
+
+    // Pause health checks when page is hidden to save resources
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            stopHealthCheck();
+        } else {
+            startHealthCheck();
+        }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    cleanupFns.push(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        stopHealthCheck();
+    });
+
+    startHealthCheck();
     render();
 
     return {

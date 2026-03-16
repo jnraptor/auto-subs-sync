@@ -1,4 +1,6 @@
 import * as api from '../api.js';
+import { show, hide } from '../utils/dom.js';
+import { logError } from '../utils/errors.js';
 
 export function createPreview(store) {
     let cleanupFns = [];
@@ -79,7 +81,8 @@ export function createPreview(store) {
             if (videoEl.textTracks[0]) videoEl.textTracks[0].mode = 'hidden';
         });
 
-        track.addEventListener('error', () => {
+        track.addEventListener('error', (e) => {
+            logError(e, 'Subtitle track load error');
             // Non-fatal — subtitle simply won't display
         });
     }
@@ -154,8 +157,9 @@ export function createPreview(store) {
     function handleEnded() { updatePlayPauseButton(); stopOverlayLoop(); }
     function handleTimeUpdate() { updateSeekBar(); }
     function handleLoadedMetadata() { updateSeekBar(); }
-    function handleVideoError() {
-        playerWrapperEl && playerWrapperEl.classList.add('video-error');
+    function handleVideoError(e) {
+        logError(e, 'Video load error');
+        if (playerWrapperEl) playerWrapperEl.classList.add('video-error');
     }
 
     if (videoEl) {
@@ -229,8 +233,14 @@ export function createPreview(store) {
     // Subtitle toggle buttons
     function handleShowOriginal() {
         const sub = store.get('selectedSubtitle');
-        showOriginalBtn && showOriginalBtn.classList.add('active');
-        showSyncedBtn && showSyncedBtn.classList.remove('active');
+        if (showOriginalBtn) {
+            showOriginalBtn.classList.add('active');
+            showOriginalBtn.setAttribute('aria-pressed', 'true');
+        }
+        if (showSyncedBtn) {
+            showSyncedBtn.classList.remove('active');
+            showSyncedBtn.setAttribute('aria-pressed', 'false');
+        }
         if (sub) loadSubtitle(sub.path);
         else loadSubtitle(null);
     }
@@ -238,8 +248,14 @@ export function createPreview(store) {
     function handleShowSynced() {
         const result = store.get('syncResult');
         if (!result || !result.output_path) return;
-        showSyncedBtn && showSyncedBtn.classList.add('active');
-        showOriginalBtn && showOriginalBtn.classList.remove('active');
+        if (showSyncedBtn) {
+            showSyncedBtn.classList.add('active');
+            showSyncedBtn.setAttribute('aria-pressed', 'true');
+        }
+        if (showOriginalBtn) {
+            showOriginalBtn.classList.remove('active');
+            showOriginalBtn.setAttribute('aria-pressed', 'false');
+        }
         loadSubtitleUrl(api.getSubtitleUrl(result.output_path, 'vtt'));
     }
 

@@ -6,8 +6,21 @@ export function createStore(initialState) {
         return state[key];
     }
 
+    function shallowEqual(a, b) {
+        if (a === b) return true;
+        if (typeof a !== typeof b) return false;
+        if (Array.isArray(a) && Array.isArray(b)) {
+            return a.length === b.length && a.every((v, i) => v === b[i]);
+        }
+        if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {
+            const keysA = Object.keys(a), keysB = Object.keys(b);
+            return keysA.length === keysB.length && keysA.every(k => a[k] === b[k]);
+        }
+        return false;
+    }
+
     function set(key, value) {
-        if (state[key] === value) return;
+        if (shallowEqual(state[key], value)) return;
         const oldValue = state[key];
         state[key] = value;
         const subs = subscribers.get(key);

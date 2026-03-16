@@ -1,10 +1,6 @@
 import * as api from '../api.js';
-
-const UPLOAD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/>
-    <line x1="12" y1="3" x2="12" y2="15"/>
-</svg>`;
+import { show, hide } from '../utils/dom.js';
+import { logError, isValidPath, sanitizePath } from '../utils/errors.js';
 
 export function createSyncControls(store, wsManager, toast) {
     let cleanupFns = [];
@@ -46,8 +42,7 @@ export function createSyncControls(store, wsManager, toast) {
     const uploadSubtitleBtn = document.getElementById('upload-subtitle-btn');
     const subtitleUploadInput = document.getElementById('subtitle-upload');
 
-    function show(el) { el && el.classList.remove('hidden'); }
-    function hide(el) { el && el.classList.add('hidden'); }
+    let previousStatus = null;
 
     function renderView() {
         const status = store.get('syncStatus');
@@ -71,7 +66,15 @@ export function createSyncControls(store, wsManager, toast) {
             // completed | failed | cancelled
             show(selectedVideoEl);
             show(resultSectionEl);
+
+            // Move focus to result message when sync completes/fails/cancels
+            if (previousStatus === 'syncing' && resultMessageEl) {
+                resultMessageEl.setAttribute('tabindex', '-1');
+                resultMessageEl.focus();
+            }
         }
+
+        previousStatus = status;
     }
 
     function renderVideoName() {
@@ -194,6 +197,12 @@ export function createSyncControls(store, wsManager, toast) {
         if (!video) { toast.warning('Please select a video file'); return; }
         if (!subtitleValue && engine !== 'manual') { toast.warning('Please select a subtitle file'); return; }
 
+        // Validate video path
+        if (!isValidPath(video.path)) {
+            toast.error('Invalid video path');
+            return;
+        }
+
         const audioTrack = audioTrackEl ? (audioTrackEl.value || null) : null;
         const manualOffset = manualOffsetEl ? (parseInt(manualOffsetEl.value) || 0) : 0;
         const framerateAdjust = framerateAdjustEl ? framerateAdjustEl.value : 'none';
@@ -210,8 +219,8 @@ export function createSyncControls(store, wsManager, toast) {
         }
 
         const request = {
-            video_path: video.path,
-            subtitle_path: subtitleValue,
+            video_path: sanitizePath(video.path),
+            subtitle_path: subtitleValue ? sanitizePath(subtitleValue) : null,
             engine,
             options: {
                 audio_track: audioTrack ? parseInt(audioTrack) : null,
@@ -227,6 +236,7 @@ export function createSyncControls(store, wsManager, toast) {
         try {
             response = await api.startSync(request);
         } catch (err) {
+            logError(err, 'Failed to start sync');
             if (err.status === 429) {
                 toast.warning('A sync job is already running');
             } else {
@@ -297,7 +307,7 @@ export function createSyncControls(store, wsManager, toast) {
         wsUnsubscribers = [];
 
         if (jobId) {
-            try { await api.cancelJob(jobId); } catch { /* ignore */ }
+            try { await api.cancelJob(jobId); } catch (err) { logError(err, 'Failed to cancel job'); }
         }
 
         store.batch({
@@ -313,6 +323,7 @@ export function createSyncControls(store, wsManager, toast) {
         try {
             await api.downloadSubtitle(jobId);
         } catch (err) {
+            logError(err, 'Download failed');
             toast.error(`Download failed: ${err.message}`);
         }
     }
@@ -327,6 +338,7 @@ export function createSyncControls(store, wsManager, toast) {
             const message = overwrite ? 'Overwritten at' : 'Saved to';
             toast.success(`${message} ${result.path}`);
         } catch (err) {
+            logError(err, 'Save failed');
             toast.error(`Save failed: ${err.message}`);
         } finally {
             if (saveResultBtn) saveResultBtn.removeAttribute('aria-busy');
@@ -362,6 +374,15 @@ export function createSyncControls(store, wsManager, toast) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Validate file type
+        const validTypes = ['.srt', '.ass', '.ssa'];
+        const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+        if (!validTypes.includes(fileExt)) {
+            toast.error('Invalid subtitle format. Supported: SRT, ASS, SSA');
+            subtitleUploadInput.value = '';
+            return;
+        }
+
         uploadSubtitleBtn.setAttribute('aria-busy', 'true');
         uploadSubtitleBtn.disabled = true;
 
@@ -370,6 +391,7 @@ export function createSyncControls(store, wsManager, toast) {
             store.set('uploadedSubtitle', { tempId: result.temp_id, filename: result.filename });
             toast.success(`Uploaded: ${result.filename}`);
         } catch (err) {
+            logError(err, 'Subtitle upload failed');
             toast.error(`Upload failed: ${err.message}`);
         } finally {
             uploadSubtitleBtn.removeAttribute('aria-busy');

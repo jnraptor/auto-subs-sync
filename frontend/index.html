@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Synchronize subtitles with video files automatically using ffsubsync and alass">
     <title>Auto Subtitle Sync</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
+<body>
+    <!-- Skip link for keyboard navigation -->
+    <a href="#main-content" class="sr-only" id="skip-link">Skip to main content</a>
 <body>
     <header class="header">
         <div class="header-content">
@@ -24,9 +28,9 @@
         </div>
     </header>
 
-    <main class="main-content">
+    <main class="main-content" id="main-content">
         <div class="panels-container">
-            <aside class="panel file-browser-panel">
+            <aside class="panel file-browser-panel" aria-label="File browser">
                 <div class="panel-header">
                     <h2>Files</h2>
                     <button id="refresh-files" class="btn btn-icon" aria-label="Refresh file list">
@@ -44,10 +48,10 @@
                     </button>
                 </div>
                 <nav id="breadcrumb" class="breadcrumb" aria-label="File path"></nav>
-                <div id="file-browser" class="file-browser" role="listbox" aria-label="File list"></div>
+                <div id="file-browser" class="file-browser" role="list" aria-label="File list"></div>
             </aside>
 
-            <section class="panel main-panel">
+            <section class="panel main-panel" aria-label="Sync controls">
                 <div class="panel-section">
                     <div class="panel-header">
                         <h2>Sync Controls</h2>
@@ -158,9 +162,9 @@
                         </div>
 
                         <!-- Progress section -->
-                        <div id="progress-section" class="progress-section hidden" aria-live="polite" role="status" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div id="progress-section" class="progress-section hidden" aria-live="polite" role="status" aria-atomic="true">
                             <div class="progress-bar-container">
-                                <div class="progress-bar" role="progressbar">
+                                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Sync progress">
                                     <div id="progress-fill" class="progress-fill"></div>
                                 </div>
                                 <span id="progress-text" class="progress-text" aria-hidden="true">0%</span>
@@ -199,7 +203,7 @@
                                         Save to Folder
                                     </button>
                                     <label class="checkbox-label overwrite-toggle">
-                                        <input type="checkbox" id="overwrite-toggle" aria-label="Overwrite original subtitle">
+                                        <input type="checkbox" id="overwrite-toggle" aria-label="Overwrite original subtitle file">
                                         <span>Overwrite original subtitle</span>
                                     </label>
                                 </div>
@@ -219,11 +223,11 @@
                     <div class="panel-header preview-panel-header">
                         <h2>Preview</h2>
                         <div class="preview-header-actions">
-                            <div id="subtitle-toggle" class="subtitle-toggle hidden" role="group" aria-label="Subtitle display">
-                                <button id="show-original" class="btn btn-sm btn-toggle active">Original</button>
-                                <button id="show-synced" class="btn btn-sm btn-toggle">Synced</button>
+                            <div id="subtitle-toggle" class="subtitle-toggle hidden" role="group" aria-label="Subtitle display toggle">
+                                <button id="show-original" class="btn btn-sm btn-toggle active" aria-pressed="true">Original</button>
+                                <button id="show-synced" class="btn btn-sm btn-toggle" aria-pressed="false">Synced</button>
                             </div>
-                            <button id="preview-toggle-btn" class="btn btn-icon" aria-label="Expand preview" aria-expanded="false">
+                            <button id="preview-toggle-btn" class="btn btn-icon" aria-label="Expand preview" aria-expanded="false" aria-controls="preview-container">
                                 <svg id="preview-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <path d="M19 9l-7 7-7-7"/>
                                 </svg>
@@ -233,7 +237,7 @@
                             </button>
                         </div>
                     </div>
-                    <div id="preview-container" class="preview-container preview-content">
+                    <div id="preview-container" class="preview-container preview-content" role="region" aria-label="Video preview">
                         <div id="no-video" class="no-video">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                 <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -241,9 +245,11 @@
                             <p>Select a video to preview</p>
                         </div>
                         <div id="video-player-wrapper" class="video-player-wrapper hidden">
-                            <video id="video-player" class="video-player" aria-label="Video preview"></video>
-                            <div id="subtitle-overlay" class="subtitle-overlay hidden" aria-hidden="true"></div>
-                            <div class="video-controls">
+                            <video id="video-player" class="video-player" aria-label="Video player">
+                                <track kind="subtitles" srclang="en" label="English" default />
+                            </video>
+                            <div id="subtitle-overlay" class="subtitle-overlay hidden" aria-live="polite" aria-atomic="true"></div>
+                            <div class="video-controls" role="group" aria-label="Video controls">
                                 <button id="play-pause" class="btn btn-icon" aria-label="Play">
                                     <svg id="play-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -253,7 +259,7 @@
                                     </svg>
                                 </button>
                                 <div class="seek-bar-container">
-                                    <input type="range" id="seek-bar" class="seek-bar" min="0" max="100" value="0" aria-label="Seek">
+                                    <input type="range" id="seek-bar" class="seek-bar" min="0" max="100" value="0" aria-label="Seek video">
                                     <span id="time-display" class="time-display" aria-live="off">0:00 / 0:00</span>
                                 </div>
                             </div>
@@ -268,7 +274,7 @@
         <p>Auto Subtitle Sync — Uses ffsubsync and alass for synchronization</p>
     </footer>
 
-    <div id="toast-container" class="toast-container" aria-live="assertive" aria-atomic="true"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <script type="module" src="js/app.js"></script>
 </body>

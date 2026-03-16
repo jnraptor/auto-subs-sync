@@ -1,22 +1,11 @@
 import * as api from '../api.js';
-
-const FILE_ICONS = {
-    folder: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`,
-    video:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`,
-    subtitle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>`,
-    file:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>`,
-};
-
-function formatFileSize(bytes) {
-    if (!bytes) return '';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+import { getFileIcon } from '../utils/icons.js';
+import { formatFileSize } from '../utils/dom.js';
+import { debounce } from '../utils/events.js';
+import { isValidPath, sanitizePath } from '../utils/errors.js';
 
 export function createFileBrowser(store, toast) {
-    let cleanupFns = [];
+    const cleanupFns = [];
 
     const browserEl = document.getElementById('file-browser');
     const breadcrumbEl = document.getElementById('breadcrumb');
@@ -29,6 +18,11 @@ export function createFileBrowser(store, toast) {
     let fileItems = [];
     let filteredFileItems = [];
     let searchTerm = '';
+
+    // Debounced search handler
+    const handleSearch = debounce((value) => {
+        filterFiles(value);
+    }, 300);
 
     function updateURL(path, videoPath = null) {
         const params = new URLSearchParams();
@@ -43,14 +37,20 @@ export function createFileBrowser(store, toast) {
     }
 
     async function loadFiles(path = '') {
+        const sanitizedPath = sanitizePath(path);
+        if (!isValidPath(sanitizedPath)) {
+            toast.error('Invalid path');
+            return;
+        }
+        
         const currentVideo = store.get('selectedVideo');
-        updateURL(path, currentVideo?.path);
+        updateURL(sanitizedPath, currentVideo?.path);
         store.batch({ filesLoading: true, filesError: null });
         try {
-            const data = await api.getFiles(path);
+            const data = await api.getFiles(sanitizedPath);
             store.batch({
                 files: data.items || [],
-                currentPath: data.path || path,
+                currentPath: data.path || sanitizedPath,
                 filesLoading: false,
             });
             // Re-apply search filter after loading new files
@@ -150,7 +150,7 @@ export function createFileBrowser(store, toast) {
         const others = files.filter(f => !['directory', 'video', 'subtitle'].includes(f.file_type));
         const sorted = [...dirs, ...videos, ...subs, ...others];
 
-        browserEl.setAttribute('role', 'listbox');
+        browserEl.setAttribute('role', 'list');
         browserEl.setAttribute('aria-label', 'File list');
         browserEl.innerHTML = '';
         fileItems = [];
@@ -172,22 +172,35 @@ export function createFileBrowser(store, toast) {
 
     function createFileItem(file, isFirst, selectedVideo) {
         const type = file.file_type === 'directory' ? 'folder' : (file.file_type || 'file');
-        const icon = FILE_ICONS[type] || FILE_ICONS.file;
+        const icon = getFileIcon(file.file_type);
         const isSelected = selectedVideo && selectedVideo.path === file.path;
 
         const item = document.createElement('div');
         item.className = `file-item ${type}${isSelected ? ' selected' : ''}`;
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        item.setAttribute('role', 'listitem');
         item.setAttribute('tabindex', isFirst ? '0' : '-1');
         item.dataset.path = file.path;
         item.dataset.type = file.file_type;
 
-        item.innerHTML = `
-            <span class="file-icon" aria-hidden="true">${icon}</span>
-            <span class="file-name">${file.name}</span>
-            ${file.size ? `<span class="file-meta">${formatFileSize(file.size)}</span>` : ''}
-        `;
+        // Use textContent for file.name to prevent XSS
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'file-icon';
+        iconSpan.setAttribute('aria-hidden', 'true');
+        iconSpan.innerHTML = icon;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'file-name';
+        nameSpan.textContent = file.name;
+
+        item.appendChild(iconSpan);
+        item.appendChild(nameSpan);
+
+        if (file.size) {
+            const metaSpan = document.createElement('span');
+            metaSpan.className = 'file-meta';
+            metaSpan.textContent = formatFileSize(file.size);
+            item.appendChild(metaSpan);
+        }
 
         function handleClick() { handleFileClick(file); }
         item.addEventListener('click', handleClick);
@@ -337,23 +350,16 @@ export function createFileBrowser(store, toast) {
     }
 
     // Search functionality
-    function handleSearchInput(e) {
-        filterFiles(e.target.value);
-    }
-    
-    function handleSearchKeyDown(e) {
-        if (e.key === 'Escape') {
-            clearSearch();
-            searchInput?.blur();
-        }
-    }
-    
     if (searchInput) {
-        searchInput.addEventListener('input', handleSearchInput);
-        searchInput.addEventListener('keydown', handleSearchKeyDown);
+        searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                clearSearch();
+                searchInput.blur();
+            }
+        });
         cleanupFns.push(() => {
-            searchInput.removeEventListener('input', handleSearchInput);
-            searchInput.removeEventListener('keydown', handleSearchKeyDown);
+            searchInput.removeEventListener('input', handleSearch);
         });
     }
     
