@@ -63,6 +63,8 @@ jobs:
       - name: ghcr.io cleanup action
         uses: dataaxiom/ghcr-cleanup-action@v1
         with:
-          delete-untagged: true
-          delete-ghost-images: true
-          delete-orphaned-images: true
+          exclude-tags: main
+          keep-n-tagged: 1
+          #delete-untagged: true
+          #delete-ghost-images: true
+          #delete-orphaned-images: true
