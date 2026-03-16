@@ -376,8 +376,14 @@ export function createFileBrowser(store, toast) {
 
     async function loadInitialVideo() {
         const params = new URLSearchParams(window.location.search);
-        const videoPath = params.get('video');
-        if (!videoPath) return;
+        const videoParam = params.get('video');
+        const pathParam = params.get('path') || '';
+        
+        if (!videoParam) return;
+
+        // Construct full video path: if pathParam is empty, videoParam is just filename
+        // otherwise, videoParam is relative to pathParam
+        const videoPath = pathParam ? `${pathParam}/${videoParam}` : videoParam;
 
         try {
             const fileInfo = await api.getFileInfo(videoPath);

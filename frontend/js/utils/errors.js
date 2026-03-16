@@ -171,7 +171,7 @@ export function validateRequired(value, name) {
  * @returns {boolean} Whether the path is valid
  */
 export function isValidPath(path) {
-    if (!path || typeof path !== 'string') return false;
+    if (path === null || typeof path !== 'string') return false;
     // Basic validation: no null bytes, no excessive length
     if (path.includes('\0')) return false;
     if (path.length > 1000) return false;
