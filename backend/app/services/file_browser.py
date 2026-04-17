@@ -1,10 +1,14 @@
 import os
+import re
 from pathlib import Path
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from ..config import settings
 from ..utils.paths import validate_path
 from ..models.schemas import FileInfo
+
+LANG_CODE_RE = re.compile(r"\.([a-z]{2,3})(?:\.hi)?\.(?:srt|ass|ssa)$", re.IGNORECASE)
+HI_RE = re.compile(r"\.hi\.(?:srt|ass|ssa)$", re.IGNORECASE)
 
 
 def get_file_type(path: Path) -> Optional[str]:
@@ -60,6 +64,24 @@ def list_directory(relative_path: str = "") -> List[FileInfo]:
     return items
 
 
+def _extract_subtitle_info(filename: str) -> Tuple[Optional[str], bool]:
+    """Extract language code and hearing impaired flag from subtitle filename.
+
+    Handles patterns like:
+    - filename.en.srt -> ('en', False)
+    - filename.en.hi.srt -> ('en', True)
+    - filename.hi.srt -> (None, True)
+    - filename.srt -> (None, False)
+    """
+    hi_match = HI_RE.search(filename)
+    hearing_impaired = hi_match is not None
+
+    lang_match = LANG_CODE_RE.search(filename)
+    language = lang_match.group(1).lower() if lang_match else None
+
+    return language, hearing_impaired
+
+
 def find_associated_subtitles(video_path: str) -> List[FileInfo]:
     video_full_path = validate_path(video_path)
     video_stem = video_full_path.stem
@@ -67,7 +89,7 @@ def find_associated_subtitles(video_path: str) -> List[FileInfo]:
 
     subtitles = []
     for ext in settings.ALLOWED_SUB_EXTENSIONS:
-        # Find both exact match and suffixed versions (e.g., video.srt, video.en.srt, video.hi.srt)
+        # Find both exact match and suffixed versions (e.g., video.srt, video.en.srt, video.en.hi.srt)
         pattern = f"{video_stem}*{ext}"
         for subtitle_path in parent_dir.glob(pattern):
             if subtitle_path.is_file():
@@ -75,6 +97,7 @@ def find_associated_subtitles(video_path: str) -> List[FileInfo]:
                     subtitle_path.relative_to(Path(settings.MEDIA_PATH))
                 )
                 stat = subtitle_path.stat()
+                language, hearing_impaired = _extract_subtitle_info(subtitle_path.name)
                 subtitles.append(
                     FileInfo(
                         name=subtitle_path.name,
@@ -83,6 +106,8 @@ def find_associated_subtitles(video_path: str) -> List[FileInfo]:
                         size=stat.st_size,
                         modified=datetime.fromtimestamp(stat.st_mtime),
                         file_type="subtitle",
+                        language=language,
+                        hearing_impaired=hearing_impaired,
                     )
                 )
 
