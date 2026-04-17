@@ -1,5 +1,6 @@
 import os
 import re
+import glob as glob_module
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional, Tuple
@@ -89,8 +90,10 @@ def find_associated_subtitles(video_path: str) -> List[FileInfo]:
 
     subtitles = []
     for ext in settings.ALLOWED_SUB_EXTENSIONS:
+        # Escape glob special characters in the stem (e.g., [ ], ( ))
+        escaped_stem = glob_module.escape(video_stem)
         # Find both exact match and suffixed versions (e.g., video.srt, video.en.srt, video.en.hi.srt)
-        pattern = f"{video_stem}*{ext}"
+        pattern = f"{escaped_stem}*{ext}"
         for subtitle_path in parent_dir.glob(pattern):
             if subtitle_path.is_file():
                 relative_path = str(
