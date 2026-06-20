@@ -53,6 +53,7 @@ class JobManager:
         if job_id not in self._jobs:
             return
         job_info = self._jobs[job_id]
+        self._jobs_dir.mkdir(parents=True, exist_ok=True)
         job_file = self._jobs_dir / f"{job_id}.json"
         job_file.write_text(job_info.model_dump_json())
 
