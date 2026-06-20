@@ -70,6 +70,8 @@ class FileInfo(BaseModel):
     size: Optional[int] = None
     modified: Optional[datetime] = None
     file_type: Optional[str] = None
+    language: Optional[str] = None
+    hearing_impaired: bool = False
 
 
 class DirectoryListing(BaseModel):

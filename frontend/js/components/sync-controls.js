@@ -112,7 +112,15 @@ export function createSyncControls(store, wsManager, toast) {
         subs.forEach(sub => {
             const opt = document.createElement('option');
             opt.value = sub.path;
-            opt.textContent = sub.name;
+            let label = sub.name;
+            if (sub.language) {
+                const langUpper = sub.language.toUpperCase();
+                const hiTag = sub.hearing_impaired ? ' [HI]' : '';
+                label = `${langUpper}${hiTag} — ${sub.name}`;
+            } else if (sub.hearing_impaired) {
+                label = `HI — ${sub.name}`;
+            }
+            opt.textContent = label;
             subtitleSourceEl.appendChild(opt);
         });
 
